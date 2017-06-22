@@ -6,6 +6,12 @@
 
 using namespace std;
 
+struct MPCReturn {
+  vector<double> actuators;
+  vector<double> predicted_x;
+  vector<double> predicted_y;
+};
+
 class MPC {
  public:
   MPC();
@@ -14,7 +20,7 @@ class MPC {
 
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuatotions.
-  vector<double> Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs);
+  MPCReturn Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs);
 };
 
 #endif /* MPC_H */

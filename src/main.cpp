@@ -86,6 +86,7 @@ int main() {
         auto j = json::parse(s);
         string event = j[0].get<string>();
         if (event == "telemetry") {
+
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
@@ -94,17 +95,30 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
-          VectorXd ptsx_v = VectorXd::Map(ptsx.data(), ptsx.size());
-          VectorXd ptsy_v = VectorXd::Map(ptsy.data(), ptsy.size());
+          VectorXd ptsx_v = VectorXd(ptsx.size());
+          VectorXd ptsy_v = VectorXd(ptsy.size());
 
-          auto coeffs = polyfit(ptsx_v, ptsy_v, 1);
-          double cte = polyeval(coeffs, px) - py;
-          double epsi = psi - atan(coeffs[1]);
+          for (int i = 0; i < ptsx.size(); i++) {
+            double shift_x = ptsx[i] - px;
+            double shift_y = ptsy[i] - py;
+
+            ptsx_v[i] = shift_x * cos(0 - psi) - shift_y * sin(0 - psi);
+            ptsy_v[i] = shift_x * sin(0 - psi) + shift_y * cos(0 - psi);
+          }
+
+          std::cout << "Ptsx_v " << ptsx_v << std::endl;
+          std::cout << "Ptsx_v " << ptsy_v << std::endl;
+
+          auto coeffs = polyfit(ptsx_v, ptsy_v, 3);
+          
+          double cte = polyeval(coeffs, 0);
+          double epsi = - atan(coeffs[1]);
 
           Eigen::VectorXd state(6);
-          state << px, py, psi, v, cte, epsi;
+          state << 0, 0, 0, v, cte, epsi;
 
-          auto vars = mpc.Solve(state, coeffs);
+          auto mpcReturn = mpc.Solve(state, coeffs);
+          vector<double> actuators = mpcReturn.actuators;
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -112,8 +126,8 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          double steer_value = vars[6] / deg2rad(25);
-          double throttle_value = vars[7];
+          double steer_value = - actuators[6] / deg2rad(25);
+          double throttle_value = actuators[7];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -122,8 +136,8 @@ int main() {
           msgJson["throttle"] = throttle_value;
 
           //Display the MPC predicted trajectory 
-          vector<double> mpc_x_vals;
-          vector<double> mpc_y_vals;
+          vector<double> mpc_x_vals = mpcReturn.predicted_x;
+          vector<double> mpc_y_vals = mpcReturn.predicted_y;
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
@@ -132,8 +146,17 @@ int main() {
           msgJson["mpc_y"] = mpc_y_vals;
 
           //Display the waypoints/reference line
+          double poly_inc = 2.5;
+          double num_points = 25;
+
+          
           vector<double> next_x_vals;
           vector<double> next_y_vals;
+
+          for (int i = 1; i < num_points; i++) {
+            next_x_vals.push_back(poly_inc * i);
+            next_y_vals.push_back(polyeval(coeffs, poly_inc * i));
+          }
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
@@ -143,7 +166,7 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
