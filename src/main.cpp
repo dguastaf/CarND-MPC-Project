@@ -80,7 +80,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -115,7 +115,6 @@ int main() {
           Eigen::VectorXd state(6);
 
           state << 0, 0, 0, v, cte, epsi;
-          std::cout << "state " << state << std::endl;
           
           auto mpcReturn = mpc.Solve(state, coeffs);
           vector<double> actuators = mpcReturn.actuators;
