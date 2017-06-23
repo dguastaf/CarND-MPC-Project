@@ -18,6 +18,7 @@ using namespace Eigen;
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
+const double Lf = 2.67;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -106,17 +107,16 @@ int main() {
             ptsy_v[i] = shift_x * sin(0 - psi) + shift_y * cos(0 - psi);
           }
 
-          std::cout << "Ptsx_v " << ptsx_v << std::endl;
-          std::cout << "Ptsx_v " << ptsy_v << std::endl;
-
           auto coeffs = polyfit(ptsx_v, ptsy_v, 3);
           
           double cte = polyeval(coeffs, 0);
-          double epsi = - atan(coeffs[1]);
+          double epsi = -atan(coeffs[1]);
 
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
 
+          state << 0, 0, 0, v, cte, epsi;
+          std::cout << "state " << state << std::endl;
+          
           auto mpcReturn = mpc.Solve(state, coeffs);
           vector<double> actuators = mpcReturn.actuators;
 
@@ -126,8 +126,8 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          double steer_value = - actuators[6] / deg2rad(25);
-          double throttle_value = actuators[7];
+          double steer_value = actuators[0] / deg2rad(25) * Lf;
+          double throttle_value = actuators[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -176,7 +176,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          // this_thread::sleep_for(chrono::milliseconds(0));
+          // this_thread::sleep_for(chrono::milliseconds(100));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
