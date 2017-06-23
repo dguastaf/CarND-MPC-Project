@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 10;
-double dt = 0.15;
+size_t N = 8;
+double dt = 0.1;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -21,7 +21,7 @@ double dt = 0.15;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-const double ref_v = 30;
+const double ref_v = 80;
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. Thus, we should to establish
@@ -51,8 +51,8 @@ class FG_eval {
 
     // The part of the cost based on the reference state.
     for (int t = 0; t < N; t++) {
-      fg[0] += 1000*CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += 1000*CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += 3000*CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += 3000*CppAD::pow(vars[epsi_start + t], 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
@@ -65,7 +65,7 @@ class FG_eval {
     // Minimize the value gap between sequential actuations.
     for (int t = 0; t < N - 2; t++) {
       fg[0] += 200*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += 10*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // We add 1 to each of the starting indices due to cost being located at
@@ -108,7 +108,7 @@ class FG_eval {
       fg[1 + psi_start + t] = psi1 - (psi0 - v0 * delta0 / Lf * dt);
       fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
       fg[1 + cte_start + t] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-      fg[1 + epsi_start + t] = epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+      fg[1 + epsi_start + t] = epsi1 - ((psi0 - psides0) - v0 * delta0 / Lf * dt);
     }
   }
 };
@@ -147,12 +147,12 @@ MPCReturn MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars[i] = 0;
   }
 
-  // vars[x_start] = x;
-  // vars[y_start] = y;
-  // vars[psi_start] = psi;
-  // vars[v_start] = v;
-  // vars[cte_start] = cte;
-  // vars[epsi_start] = epsi;
+  vars[x_start] = x;
+  vars[y_start] = y;
+  vars[psi_start] = psi;
+  vars[v_start] = v;
+  vars[cte_start] = cte;
+  vars[epsi_start] = epsi;
   
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
@@ -235,7 +235,7 @@ MPCReturn MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Cost
   auto cost = solution.obj_value;
-  std::cout << "Cost " << cost << std::endl;
+  // std::cout << "Cost " << cost << std::endl;
 
   // TODO: Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
@@ -250,8 +250,8 @@ MPCReturn MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   mpcReturn.predicted_y = {};
 
   for (size_t i = 0; i < N - 1; i++) {
-    mpcReturn.predicted_x.push_back(solution.x[x_start + i + 1]);
-    mpcReturn.predicted_y.push_back(solution.x[y_start + i + 1]);
+    mpcReturn.predicted_x.push_back(solution.x[x_start + i]);
+    mpcReturn.predicted_y.push_back(solution.x[y_start + i]);
   }
 
   return mpcReturn;
